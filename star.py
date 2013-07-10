@@ -6,27 +6,60 @@
 import pygame, random
 pygame.init()
 
-screen = pygame.display.set_mode((940, 480))
+screen = pygame.display.set_mode((840, 480))
 
 class Ship(pygame.sprite.Sprite):
+  
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load("ship.gif")
-        self.image = self.image.convert()
+        self.loadImages()
+        
+        self.frame = 0
+        self.delay = 3
+        self.pause = 0
+
+        self.image = self.imgList[0]
         self.rect = self.image.get_rect()
+        
+    def loadImages(self):
+        imgMaster = pygame.image.load("ship.bmp")
+        imgMaster = imgMaster.convert()
         
         if not pygame.mixer:
             print("problem with sound")
         else:
             pygame.mixer.init()
-            self.sndYay = pygame.mixer.Sound("star.ogg")
-            self.sndThunder = pygame.mixer.Sound("enemy.ogg")
-            self.sndEngine = pygame.mixer.Sound("music.ogg")
-            self.sndEngine.play(-1)
+            self.sndStar = pygame.mixer.Sound("star.ogg")
+            self.sndCrash = pygame.mixer.Sound("crash.ogg")
+            self.sndBg = pygame.mixer.Sound("bg.ogg")
+            self.sndBonus = pygame.mixer.Sound("bonus.ogg")
+            self.sndBg.play(-1)
+        self.imgList = []
         
+        imgSize = (64,29)
+        offset = ((0, 0), (0,29), (0, 58), (0, 87))
+
+        for i in range(4):
+            tmpImg = pygame.Surface(imgSize)
+            tmpImg.blit(imgMaster, (0, 0), (offset[i], imgSize))
+            transColor = tmpImg.get_at((1, 1))
+            tmpImg.set_colorkey(transColor)
+            self.imgList.append(tmpImg)
+    
     def update(self):
-        mousex, mousey = pygame.mouse.get_pos()
-        self.rect.center = (50, mousey)
+        self.pause += 1
+        if self.pause >= self.delay:
+            self.pause = 0
+            self.frame += 1
+            if self.frame >= len(self.imgList):
+                self.frame = 0
+                
+            self.image = self.imgList[self.frame]
+            self.rect = self.image.get_rect()
+            self.rect.center = (320, 240)
+            
+            mousex, mousey = pygame.mouse.get_pos()
+            self.rect.center = (50, mousey)
 class Star(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -38,7 +71,38 @@ class Star(pygame.sprite.Sprite):
         self.dx = 8
     
     def update(self):
+        mousex, mousey = pygame.mouse.get_pos()
+        if mousey > self.rect.centery:
+            self.dy = 1
+        else:  
+            self.dy = -1
         self.rect.centerx -= self.dx
+        self.rect.centery -= self.dy
+        if self.rect.right <= 0: #screen.get_width():
+            self.reset()
+            
+    def reset(self):
+        self.rect.centerx = 960
+        self.rect.centery = random.randrange(0, screen.get_height())
+        
+class Bonus(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load("bonus.gif")
+        self.image = self.image.convert()
+        self.rect = self.image.get_rect()
+        self.reset()
+        
+        self.dx = 8
+    
+    def update(self):
+        mousex, mousey = pygame.mouse.get_pos()
+        if mousey > self.rect.centery:
+            self.dy = 2
+        else:  
+            self.dy = -2
+        self.rect.centerx -= self.dx
+        self.rect.centery -= self.dy
         if self.rect.right <= 0: #screen.get_width():
             self.reset()
             
@@ -55,6 +119,11 @@ class Alien(pygame.sprite.Sprite):
         self.reset()
 
     def update(self):
+        mousex, mousey = pygame.mouse.get_pos()
+        if mousey > self.rect.centery:
+            self.dy = -2
+        else:  
+            self.dy = 2
         self.rect.centerx -= self.dx
         self.rect.centery -= self.dy
         if self.rect.right <= 0:
@@ -78,11 +147,11 @@ class Space(pygame.sprite.Sprite):
         
     def update(self):
         self.rect.left += self.dx
-        if self.rect.left <= -1782:
+        if self.rect.left <= -1042:
             self.reset() 
     
     def reset(self):
-        self.rect.left = +940
+        self.rect.left = +0
 class Scoreboard(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -102,15 +171,15 @@ def game():
     background.fill((0, 0, 0))
     screen.blit(background, (0, 0))
     ship = Ship()
+    bonus = Bonus()
     star = Star()
     alien1 = Alien()
     alien2 = Alien()
-    alien3 = Alien()
     space = Space()
     scoreboard = Scoreboard()
 
-    friendSprites = pygame.sprite.OrderedUpdates(space, star, ship)
-    alienSprites = pygame.sprite.Group(alien1, alien2, alien3)
+    friendSprites = pygame.sprite.OrderedUpdates(space, star, ship, bonus)
+    alienSprites = pygame.sprite.Group(alien1, alien2)
     scoreSprite = pygame.sprite.Group(scoreboard)
 
     clock = pygame.time.Clock()
@@ -126,18 +195,23 @@ def game():
         #check collisions
         
         if ship.rect.colliderect(star.rect):
-            ship.sndYay.play()
+            ship.sndStar.play()
             star.reset()
             scoreboard.score += 1
+            
+        if ship.rect.colliderect(bonus.rect):
+            ship.sndBonus.play()
+            bonus.reset()
+            scoreboard.lives += 1
 
-        hitClouds = pygame.sprite.spritecollide(ship, alienSprites, False)
-        if hitClouds:
-            ship.sndThunder.play()
+        hitAlien = pygame.sprite.spritecollide(ship, alienSprites, False)
+        if hitAlien:
+            ship.sndCrash.play()
             scoreboard.lives -= 1
             if scoreboard.lives <= 0:
                 keepGoing = False
-            for theCloud in hitClouds:
-                theCloud.reset()
+            for theAlien in hitAlien:
+                theAlien.reset()
         
         friendSprites.update()
         alienSprites.update()
@@ -149,7 +223,7 @@ def game():
         
         pygame.display.flip()
     
-    ship.sndEngine.stop()
+    ship.sndBg.stop()
     #return mouse cursor
     pygame.mouse.set_visible(True) 
     return scoreboard.score
@@ -165,18 +239,18 @@ def instructions(score):
     insLabels = []
     instructions = (
     "Mail Pilot.     Last score: %d" % score ,
-    "Instructions:  You are a mail pilot,",
-    "delivering mail to the islands.",
+    "Instructions:  You are driving a Space Ship",
+    "trying to avoid aliens and collecting stars",
+    "to save your planet.",
+    "The aliens will move towards you",
+    "the stars will try to avoid you",    
+    "Hitting the aliens will drain your life",
+    "Pink stars give you more life points",
+    "Control the Ship with your mouse",
     "",
-    "Fly over an island to drop the mail,",
-    "but be careful not to fly too close",    
-    "to the clouds. Your plane will fall ",
-    "apart if it is hit by lightning too",
-    "many times. Steer with the mouse.",
+    "Good Luck!",
     "",
-    "good luck!",
-    "",
-    "click to start, escape to quit..."
+    "Click to start, escape to quit..."
     )
     
     for line in instructions:
@@ -208,7 +282,7 @@ def instructions(score):
 
         pygame.display.flip()
         
-    ship.sndEngine.stop()    
+    ship.sndBg.stop()    
     pygame.mouse.set_visible(True)
     return donePlaying
         
