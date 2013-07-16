@@ -1,11 +1,24 @@
-""" mail pilot 
-  
+""" Star.py
+Last Modified by: Harismrat Kaur
+
+Version history: 1.0 Basic Spaceship flying through space with a very glitchy background.
+
+Version 1.1: Spaceship controlled with mouse movement on the Y axis.
+                Three enemies moving towards the spaceship.
+                
+Version1.2:  Enemies deviate on their path to move towards the ship.
+            Number of enemies reduced to 2 to make game easier.
+            Yellow star added to collect points. Star deviates to move away from the Ship.
+            
+Version 1.3: Background resolved.
+            Bonus Pink star added to grant extra lives.
+            Sounds changed.
     
     """
     
 import pygame, random
 pygame.init()
-
+#Gameplay screen size
 screen = pygame.display.set_mode((840, 480))
 
 class Ship(pygame.sprite.Sprite):
@@ -22,6 +35,7 @@ class Ship(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         
     def loadImages(self):
+        #loading the ship
         imgMaster = pygame.image.load("ship.bmp")
         imgMaster = imgMaster.convert()
         
@@ -29,13 +43,14 @@ class Ship(pygame.sprite.Sprite):
             print("problem with sound")
         else:
             pygame.mixer.init()
+            #loading the sounds
             self.sndStar = pygame.mixer.Sound("star.ogg")
             self.sndCrash = pygame.mixer.Sound("crash.ogg")
             self.sndBg = pygame.mixer.Sound("bg.ogg")
             self.sndBonus = pygame.mixer.Sound("bonus.ogg")
             self.sndBg.play(-1)
         self.imgList = []
-        
+        #offset positions for the ship spritesheet
         imgSize = (64,29)
         offset = ((0, 0), (0,29), (0, 58), (0, 87))
 
@@ -60,7 +75,10 @@ class Ship(pygame.sprite.Sprite):
             
             mousex, mousey = pygame.mouse.get_pos()
             self.rect.center = (50, mousey)
+            
+            
 class Star(pygame.sprite.Sprite):
+    #Star class
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.image.load("star.gif")
@@ -86,6 +104,7 @@ class Star(pygame.sprite.Sprite):
         self.rect.centery = random.randrange(0, screen.get_height())
         
 class Bonus(pygame.sprite.Sprite):
+    #bonus pink star class
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.image.load("bonus.gif")
@@ -119,6 +138,7 @@ class Alien(pygame.sprite.Sprite):
         self.reset()
 
     def update(self):
+        #Making the star deviare away from the position of the ship
         mousex, mousey = pygame.mouse.get_pos()
         if mousey > self.rect.centery:
             self.dy = -2
@@ -130,6 +150,7 @@ class Alien(pygame.sprite.Sprite):
             self.reset()
     
     def reset(self):
+
         self.rect.bottom = 0
         self.rect.centery = random.randrange(0, screen.get_height())
         self.rect.centerx = 960
@@ -137,6 +158,7 @@ class Alien(pygame.sprite.Sprite):
         self.dx = random.randrange(5, 10)
     
 class Space(pygame.sprite.Sprite):
+    #background
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.image.load("space.gif")
@@ -144,14 +166,15 @@ class Space(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.dx = -6
         self.reset()
-        
+        #rotating and repeating the background image
     def update(self):
         self.rect.left += self.dx
-        if self.rect.left <= -1042:
+        if self.rect.left <= -1782 + screen.get_width():
             self.reset() 
     
     def reset(self):
         self.rect.left = +0
+        
 class Scoreboard(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -177,7 +200,7 @@ def game():
     alien2 = Alien()
     space = Space()
     scoreboard = Scoreboard()
-
+    #order of the sprites
     friendSprites = pygame.sprite.OrderedUpdates(space, star, ship, bonus)
     alienSprites = pygame.sprite.Group(alien1, alien2)
     scoreSprite = pygame.sprite.Group(scoreboard)
@@ -193,17 +216,17 @@ def game():
 
         
         #check collisions
-        
+        #increment score by 1 when collided with a star
         if ship.rect.colliderect(star.rect):
             ship.sndStar.play()
             star.reset()
             scoreboard.score += 1
-            
+        #increment lives by 1 when collided with a bonus star  
         if ship.rect.colliderect(bonus.rect):
             ship.sndBonus.play()
             bonus.reset()
             scoreboard.lives += 1
-
+        #decrease number of lives by 1 when collided with an alien sprite
         hitAlien = pygame.sprite.spritecollide(ship, alienSprites, False)
         if hitAlien:
             ship.sndCrash.play()
@@ -229,6 +252,7 @@ def game():
     return scoreboard.score
     
 def instructions(score):
+    #displaying the instructions for the game
     pygame.display.set_caption("SpaceNova!")
 
     ship = Ship()
@@ -238,7 +262,7 @@ def instructions(score):
     insFont = pygame.font.SysFont(None, 50)
     insLabels = []
     instructions = (
-    "Mail Pilot.     Last score: %d" % score ,
+    "Space Nova!     Last score: %d" % score ,
     "Instructions:  You are driving a Space Ship",
     "trying to avoid aliens and collecting stars",
     "to save your planet.",
